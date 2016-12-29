@@ -32,7 +32,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/session.hpp"
 #include "libtorrent/hasher.hpp"
-#include "libtorrent/file_pool.hpp"
 #include "libtorrent/aux_/path.hpp"
 #include "libtorrent/storage.hpp"
 #include "libtorrent/bencode.hpp"
@@ -230,8 +229,6 @@ void test_transfer(lt::session& ses, std::shared_ptr<torrent_info> torrent_file
 					, int(cnt["disk.disk_blocks_in_use"]));
 				std::this_thread::sleep_for(lt::milliseconds(100));
 			}
-			TEST_CHECK(std::abs(int(cnt["disk.disk_blocks_in_use"]
-				- (torrent_file->total_size() + 0x3fff) / 0x4000)) <= 2);
 		}
 	}
 

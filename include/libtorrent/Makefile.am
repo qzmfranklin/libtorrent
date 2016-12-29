@@ -16,7 +16,6 @@ nobase_include_HEADERS = \
   bencode.hpp                  \
   bdecode.hpp                  \
   bitfield.hpp                 \
-  block_cache.hpp              \
   bloom_filter.hpp             \
   broadcast_socket.hpp         \
   bt_peer_connection.hpp       \
@@ -40,6 +39,7 @@ nobase_include_HEADERS = \
   disk_io_thread_pool.hpp      \
   disk_observer.hpp            \
   disk_job_pool.hpp            \
+  disabled_disk_io.hpp         \
   ed25519.hpp                  \
   entry.hpp                    \
   enum_net.hpp                 \
@@ -48,7 +48,7 @@ nobase_include_HEADERS = \
   export.hpp                   \
   extensions.hpp               \
   file.hpp                     \
-  file_pool.hpp                \
+  file_view_pool.hpp           \
   file_storage.hpp             \
   fingerprint.hpp              \
   flags.hpp                    \
@@ -184,7 +184,6 @@ nobase_include_HEADERS = \
   aux_/proxy_settings.hpp           \
   aux_/session_interface.hpp        \
   aux_/suggest_piece.hpp            \
-  aux_/storage_piece_set.hpp        \
   aux_/time.hpp                     \
   aux_/file_progress.hpp            \
   aux_/openssl.hpp                  \
@@ -208,6 +207,8 @@ nobase_include_HEADERS = \
   aux_/array.hpp                    \
   aux_/ip_notifier.hpp              \
   aux_/noexcept_movable.hpp         \
+  aux_/mmap.hpp                     \
+  aux_/store_buffer.hpp             \
   \
   extensions/smart_ban.hpp          \
   extensions/ut_metadata.hpp        \

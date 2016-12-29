@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2003-2016, Arvid Norberg, Daniel Wallin
+Copyright (c) 2017, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,37 +30,71 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#include "libtorrent/aux_/storage_piece_set.hpp"
-#include "libtorrent/assert.hpp"
-#include "libtorrent/block_cache.hpp"
-#include "libtorrent/storage.hpp" // for storage_interface
+#ifndef TORRENT_STORE_BUFFER
+#define TORRENT_STORE_BUFFER
 
-namespace libtorrent { namespace aux {
+#include <map>
+#include <mutex>
 
-	void storage_piece_set::add_piece(cached_piece_entry* p)
+namespace libtorrent {
+namespace aux {
+
+// uniquely identifies a torrent and offset. It is used as the key in the
+// dictionary mapping locations to write jobs
+struct torrent_location
+{
+	torrent_location(default_storage* t, piece_index_t p, int o)
+		: torrent(t), piece(p), offset(o) {}
+	// TODO: this should use the storage index instead
+	default_storage* torrent;
+	piece_index_t piece;
+	int offset;
+	bool operator<(torrent_location const& rhs) const
 	{
-		TORRENT_ASSERT(p->in_storage == false);
-		TORRENT_ASSERT(p->storage.get() == this);
-		TORRENT_ASSERT(m_cached_pieces.count(p) == 0);
-		m_cached_pieces.insert(p);
-#if TORRENT_USE_ASSERTS
-		p->in_storage = true;
+		return std::tie(torrent, piece, offset)
+			< std::tie(rhs.torrent, rhs.piece, rhs.offset);
+	}
+};
+
+struct store_buffer
+{
+	template <typename Fun>
+	bool get(torrent_location const loc, Fun f)
+	{
+		std::unique_lock<std::mutex> l(m_mutex);
+		auto it = m_store_buffer.find(loc);
+		if (it != m_store_buffer.end())
+		{
+			f(it->second);
+			return true;
+		}
+		return false;
+	}
+
+	void insert(torrent_location const loc, char* buf)
+	{
+		std::lock_guard<std::mutex> l(m_mutex);
+		m_store_buffer.insert({loc, buf});
+	}
+
+	void erase(torrent_location const loc)
+	{
+		std::lock_guard<std::mutex> l(m_mutex);
+		auto it = m_store_buffer.find(loc);
+		TORRENT_ASSERT(it != m_store_buffer.end());
+		m_store_buffer.erase(it);
+	}
+
+private:
+
+	std::mutex m_mutex;
+
+	// TODO: this should be a hash table
+	std::map<torrent_location, char*> m_store_buffer;
+};
+
+}
+}
+
 #endif
-	}
 
-	bool storage_piece_set::has_piece(cached_piece_entry const* p) const
-	{
-		return m_cached_pieces.count(const_cast<cached_piece_entry*>(p)) > 0;
-	}
-
-	void storage_piece_set::remove_piece(cached_piece_entry* p)
-	{
-		TORRENT_ASSERT(p->in_storage == true);
-		TORRENT_ASSERT(m_cached_pieces.count(p) == 1);
-		m_cached_pieces.erase(p);
-#if TORRENT_USE_ASSERTS
-		p->in_storage = false;
-#endif
-	}
-
-}}

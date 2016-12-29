@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2003-2016, Arvid Norberg
+Copyright (c) 2016, Arvid Norberg
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,35 +30,32 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TORRENT_STORAGE_PIECE_SET_HPP_INCLUDE
-#define TORRENT_STORAGE_PIECE_SET_HPP_INCLUDE
+#ifndef TORRENT_JOB_QUEUE_HPP
+#define TORRENT_JOB_QUEUE_HPP
 
-#include <unordered_set>
+namespace libtorrent { namespace aux {
 
-#include "libtorrent/export.hpp"
-
-namespace libtorrent {
-
-struct cached_piece_entry;
-
-namespace aux {
-
-	// this class keeps track of which pieces, belonging to
-	// a specific storage, are in the cache right now. It's
-	// used for quickly being able to evict all pieces for a
-	// specific torrent
-	struct TORRENT_EXPORT storage_piece_set
+	struct block_key
 	{
-		void add_piece(cached_piece_entry* p);
-		void remove_piece(cached_piece_entry* p);
-		bool has_piece(cached_piece_entry const* p) const;
-		int num_pieces() const { return int(m_cached_pieces.size()); }
-		std::unordered_set<cached_piece_entry*> const& cached_pieces() const
-		{ return m_cached_pieces; }
-	private:
-		// these are cached pieces belonging to this storage
-		std::unordered_set<cached_piece_entry*> m_cached_pieces;
+		void* torrent;
+		int block;
 	};
-}}
+
+	struct job_queue
+	{
+		// jobs queued to be serviced
+		boost::circular_buffer<disk_job> m_job_queue;
+
+		// jobs that are currently being serviced
+		std::vector<disk_job> m_pending_jobs;
+
+		// maps a block queued to be written to disk to 
+		std::unordered_map<block_key, int> m_store_buffer;
+
+		// pool of disk blocks
+		disk_block_pool m_buffers;
+	};
+}
 
 #endif
+

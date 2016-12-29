@@ -18,7 +18,6 @@ set(sources
 	bandwidth_queue_entry
 	bdecode
 	bitfield
-	block_cache
 	bloom_filter
 	chained_buffer
 	choker
@@ -89,7 +88,6 @@ set(sources
 	stat
 	stat_cache
 	storage
-	storage_piece_set
 	storage_utils
 	time
 	timestamp_history
@@ -115,6 +113,7 @@ set(sources
 	disk_buffer_pool
 	disk_io_thread
 	disk_io_thread_pool
+	disabled_disk_io
 	enum_net
 	broadcast_socket
 	magnet_uri
@@ -124,6 +123,7 @@ set(sources
 	version
 	ffs
 	add_torrent_params
+	mmap
 
 # -- extensions --
 	ut_pex

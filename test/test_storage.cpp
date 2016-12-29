@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "settings.hpp"
 
 #include "libtorrent/storage.hpp"
-#include "libtorrent/file_pool.hpp"
+#include "libtorrent/aux_/file_view_pool.hpp"
 #include "libtorrent/hasher.hpp"
 #include "libtorrent/session.hpp"
 #include "libtorrent/alert_types.hpp"
@@ -120,8 +120,6 @@ void run_until(io_service& ios, bool const& done)
 	}
 }
 
-void nop() {}
-
 std::shared_ptr<torrent_info> setup_torrent_info(file_storage& fs
 	, std::vector<char>& buf)
 {
@@ -152,7 +150,7 @@ std::shared_ptr<torrent_info> setup_torrent_info(file_storage& fs
 }
 
 std::shared_ptr<default_storage> setup_torrent(file_storage& fs
-	, file_pool& fp
+	, aux::file_view_pool& fp
 	, std::vector<char>& buf
 	, std::string const& test_path
 	, aux::session_settings& set)
@@ -170,11 +168,10 @@ std::shared_ptr<default_storage> setup_torrent(file_storage& fs
 		info_hash
 	};
 	std::shared_ptr<default_storage> s(new default_storage(p, fp));
-	s->m_settings = &set;
 
 	// allocate the files and create the directories
 	storage_error se;
-	s->initialize(se);
+	s->initialize(set, se);
 	if (se)
 	{
 		TEST_ERROR(se.ec.message().c_str());
@@ -230,10 +227,9 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 	char* piece = static_cast<char*>(malloc(piece_size));
 
 	{ // avoid having two storages use the same files
-	file_pool fp;
+	aux::file_view_pool fp;
 	boost::asio::io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
-
+	disk_buffer_pool dp(16 * 1024, ios);
 	aux::vector<std::uint8_t, file_index_t> priorities;
 	sha1_hash info_hash;
 	storage_params p{
@@ -244,11 +240,10 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 		priorities,
 		info_hash
 	};
-	std::unique_ptr<storage_interface> s(new default_storage(p, fp));
-	s->m_settings = &set;
+	auto s = std::make_shared<default_storage>(p, fp);
 
 	storage_error ec;
-	s->initialize(ec);
+	s->initialize(set, ec);
 	TEST_CHECK(!ec);
 	if (ec) print_error("initialize", 0, ec);
 
@@ -256,50 +251,50 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 
 	// write piece 1 (in slot 0)
 	iovec_t iov = { piece1.data(), half};
-	ret = s->writev(iov, piece_index_t(0), 0, open_mode_t::read_write, ec);
+	ret = s->writev(set, iov, piece_index_t(0), 0, aux::open_mode_t::write, ec);
 	if (ret != half) print_error("writev", ret, ec);
 
 	iov = { piece1.data() + half, half };
-	ret = s->writev(iov, piece_index_t(0), half, open_mode_t::read_write, ec);
+	ret = s->writev(set, iov, piece_index_t(0), half, aux::open_mode_t::write, ec);
 	if (ret != half) print_error("writev", ret, ec);
 
 	// test unaligned read (where the bytes are aligned)
 	iov = { piece + 3, piece_size - 9};
-	ret = s->readv(iov, piece_index_t(0), 3, open_mode_t::read_write, ec);
+	ret = s->readv(set, iov, piece_index_t(0), 3, aux::open_mode_t::write, ec);
 	if (ret != piece_size - 9) print_error("readv",ret, ec);
 	TEST_CHECK(std::equal(piece+3, piece + piece_size-9, piece1.data()+3));
 
 	// test unaligned read (where the bytes are not aligned)
 	iov = { piece, piece_size - 9};
-	ret = s->readv(iov, piece_index_t(0), 3, open_mode_t::read_write, ec);
+	ret = s->readv(set, iov, piece_index_t(0), 3, aux::open_mode_t::write, ec);
 	TEST_CHECK(ret == piece_size - 9);
 	if (ret != piece_size - 9) print_error("readv", ret, ec);
 	TEST_CHECK(std::equal(piece, piece + piece_size-9, piece1.data()+3));
 
 	// verify piece 1
 	iov = { piece, piece_size };
-	ret = s->readv(iov, piece_index_t(0), 0, open_mode_t::read_write, ec);
+	ret = s->readv(set, iov, piece_index_t(0), 0, aux::open_mode_t::write, ec);
 	TEST_CHECK(ret == piece_size);
 	if (ret != piece_size) print_error("readv", ret, ec);
 	TEST_CHECK(std::equal(piece, piece + piece_size, piece1.data()));
 
 	// do the same with piece 0 and 2 (in slot 1 and 2)
 	iov = { piece0.data(), piece_size };
-	ret = s->writev(iov, piece_index_t(1), 0, open_mode_t::read_write, ec);
+	ret = s->writev(set, iov, piece_index_t(1), 0, aux::open_mode_t::write, ec);
 	if (ret != piece_size) print_error("writev", ret, ec);
 
 	iov = { piece2.data(), piece_size };
-	ret = s->writev(iov, piece_index_t(2), 0, open_mode_t::read_write, ec);
+	ret = s->writev(set, iov, piece_index_t(2), 0, aux::open_mode_t::write, ec);
 	if (ret != piece_size) print_error("writev", ret, ec);
 
 	// verify piece 0 and 2
 	iov = { piece, piece_size };
-	ret = s->readv(iov, piece_index_t(1), 0, open_mode_t::read_write, ec);
+	ret = s->readv(set, iov, piece_index_t(1), 0, aux::open_mode_t::write, ec);
 	if (ret != piece_size) print_error("readv", ret, ec);
 	TEST_CHECK(std::equal(piece, piece + piece_size, piece0.data()));
 
 	iov = { piece, piece_size };
-	ret = s->readv(iov, piece_index_t(2), 0, open_mode_t::read_write, ec);
+	ret = s->readv(set, iov, piece_index_t(2), 0, aux::open_mode_t::write, ec);
 	if (ret != piece_size) print_error("readv", ret, ec);
 	TEST_CHECK(std::equal(piece, piece + piece_size, piece2.data()));
 
@@ -320,9 +315,9 @@ void test_remove(std::string const& test_path, bool unbuffered)
 
 	file_storage fs;
 	std::vector<char> buf;
-	file_pool fp;
+	aux::file_view_pool fp;
 	io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
+	disk_buffer_pool dp(16 * 1024, ios);
 
 	aux::session_settings set;
 	set.set_int(settings_pack::disk_io_write_mode
@@ -351,7 +346,7 @@ void test_remove(std::string const& test_path, bool unbuffered)
 
 	iovec_t b = {&buf[0], 4};
 	storage_error se;
-	s->writev(b, piece_index_t(2), 0, open_mode_t::read_write, se);
+	s->writev(set, b, piece_index_t(2), 0, aux::open_mode_t::write, se);
 
 	TEST_CHECK(exists(combine_path(test_path, combine_path("temp_storage"
 		, combine_path("folder1", "test2.tmp")))));
@@ -362,7 +357,7 @@ void test_remove(std::string const& test_path, bool unbuffered)
 		, combine_path("folder1", "test2.tmp"))), &st, ec);
 	TEST_EQUAL(st.file_size, 8);
 
-	s->writev(b, piece_index_t(4), 0, open_mode_t::read_write, se);
+	s->writev(set, b, piece_index_t(4), 0, aux::open_mode_t::write, se);
 
 	TEST_CHECK(exists(combine_path(test_path, combine_path("temp_storage"
 		, combine_path("_folder3", combine_path("subfolder", "test5.tmp"))))));
@@ -394,9 +389,9 @@ void test_rename(std::string const& test_path)
 
 	file_storage fs;
 	std::vector<char> buf;
-	file_pool fp;
+	aux::file_view_pool fp;
 	io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
+	disk_buffer_pool dp(16 * 1024, ios);
 	aux::session_settings set;
 
 	std::shared_ptr<default_storage> s = setup_torrent(fs, fp, buf, test_path
@@ -467,7 +462,7 @@ void test_check_files(std::string const& test_path
 	info = std::make_shared<torrent_info>(&buf[0], int(buf.size()), std::ref(ec), 0);
 
 	aux::session_settings set;
-	file_pool fp;
+	aux::file_view_pool fp;
 	boost::asio::io_service ios;
 	counters cnt;
 	disk_io_thread io(ios, cnt);
@@ -475,8 +470,7 @@ void test_check_files(std::string const& test_path
 	sett.set_int(settings_pack::aio_threads, 1);
 	io.set_settings(&sett);
 
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
-
+	disk_buffer_pool dp(16 * 1024, ios);
 	aux::vector<std::uint8_t, file_index_t> priorities;
 	sha1_hash info_hash;
 	storage_params p{
@@ -488,8 +482,7 @@ void test_check_files(std::string const& test_path
 		info_hash
 	};
 
-	auto st = io.new_torrent(default_storage_constructor, std::move(p)
-		, std::shared_ptr<void>());
+	auto st = io.new_torrent(std::move(p), std::shared_ptr<void>());
 	std::mutex lock;
 
 	bool done = false;
@@ -569,10 +562,10 @@ void run_test(bool unbuffered)
 
 	TEST_EQUAL(file_size(combine_path(base, "test5.tmp")), 3253);
 	TEST_EQUAL(file_size(combine_path(base, "test6.tmp")), 841);
-	std::printf("file: %d expected: %d last_file_size: %d, piece_size: %d\n"
+	std::printf("file: %d expected: %d, piece_size: %d\n"
 		, int(file_size(combine_path(base, "test7.tmp")))
-		, int(last_file_size - piece_size), last_file_size, int(piece_size));
-	TEST_EQUAL(file_size(combine_path(base, "test7.tmp")), last_file_size - int(piece_size));
+		, last_file_size, int(piece_size));
+	TEST_EQUAL(file_size(combine_path(base, "test7.tmp")), last_file_size);
 	remove_all(combine_path(test_path, "temp_storage"), ec);
 	if (ec && ec != boost::system::errc::no_such_file_or_directory)
 		std::cout << "remove_all '" << combine_path(test_path, "temp_storage")
@@ -1376,14 +1369,14 @@ TORRENT_TEST(move_storage_to_self)
 	aux::session_settings set;
 	file_storage fs;
 	std::vector<char> buf;
-	file_pool fp;
+	aux::file_view_pool fp;
 	io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
+	disk_buffer_pool dp(16 * 1024, ios);
 	std::shared_ptr<default_storage> s = setup_torrent(fs, fp, buf, save_path, set);
 
 	iovec_t const b = {&buf[0], 4};
 	storage_error se;
-	s->writev(b, piece_index_t(1), 0, open_mode_t::read_write, se);
+	s->writev(set, b, piece_index_t(1), 0, aux::open_mode_t::write, se);
 
 	TEST_CHECK(exists(combine_path(test_path, combine_path("folder2", "test3.tmp"))));
 	TEST_CHECK(exists(combine_path(test_path, combine_path("_folder3", "test4.tmp"))));
@@ -1405,14 +1398,14 @@ TORRENT_TEST(move_storage_into_self)
 	aux::session_settings set;
 	file_storage fs;
 	std::vector<char> buf;
-	file_pool fp;
+	aux::file_view_pool fp;
 	io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
+	disk_buffer_pool dp(16 * 1024, ios);
 	std::shared_ptr<default_storage> s = setup_torrent(fs, fp, buf, save_path, set);
 
 	iovec_t const b = {&buf[0], 4};
 	storage_error se;
-	s->writev(b, piece_index_t(2), 0, open_mode_t::read_write, se);
+	s->writev(set, b, piece_index_t(2), 0, aux::open_mode_t::write, se);
 
 	std::string const test_path = combine_path(save_path, combine_path("temp_storage", "folder1"));
 	s->move_storage(test_path, move_flags_t::always_replace_files, se);
@@ -1451,14 +1444,14 @@ TORRENT_TEST(dont_move_intermingled_files)
 	aux::session_settings set;
 	file_storage fs;
 	std::vector<char> buf;
-	file_pool fp;
+	aux::file_view_pool fp;
 	io_service ios;
-	disk_buffer_pool dp(16 * 1024, ios, std::bind(&nop));
+	disk_buffer_pool dp(16 * 1024, ios);
 	std::shared_ptr<default_storage> s = setup_torrent(fs, fp, buf, save_path, set);
 
 	iovec_t b = {&buf[0], 4};
 	storage_error se;
-	s->writev(b, piece_index_t(2), 0, open_mode_t::read_write, se);
+	s->writev(set, b, piece_index_t(2), 0, aux::open_mode_t::write, se);
 
 	error_code ec;
 	create_directory(combine_path(save_path, combine_path("temp_storage"
@@ -1466,11 +1459,11 @@ TORRENT_TEST(dont_move_intermingled_files)
 	TEST_EQUAL(ec, boost::system::errc::success);
 	file f;
 	f.open(combine_path(save_path, combine_path("temp_storage", "alien1.tmp"))
-		, open_mode_t::write_only, ec);
+		, open_mode_t::read_write, ec);
 	f.close();
 	TEST_EQUAL(ec, boost::system::errc::success);
 	f.open(combine_path(save_path, combine_path("temp_storage"
-		, combine_path("folder1", "alien2.tmp"))), open_mode_t::write_only, ec);
+		, combine_path("folder1", "alien2.tmp"))), open_mode_t::read_write, ec);
 	f.close();
 	TEST_EQUAL(ec, boost::system::errc::success);
 

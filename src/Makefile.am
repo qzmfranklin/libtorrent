@@ -54,7 +54,6 @@ libtorrent_rasterbar_la_SOURCES = \
   bitfield.cpp                    \
   bloom_filter.cpp                \
   broadcast_socket.cpp            \
-  block_cache.cpp                 \
   bt_peer_connection.cpp          \
   chained_buffer.cpp              \
   choker.cpp                      \
@@ -68,6 +67,7 @@ libtorrent_rasterbar_la_SOURCES = \
   disk_io_job.cpp                 \
   disk_io_thread.cpp              \
   disk_io_thread_pool.cpp         \
+  disabled_disk_io.cpp            \
   disk_job_fence.cpp              \
   disk_job_pool.cpp               \
   entry.cpp                       \
@@ -76,7 +76,7 @@ libtorrent_rasterbar_la_SOURCES = \
   escape_string.cpp               \
   file.cpp                        \
   path.cpp                        \
-  file_pool.cpp                   \
+  file_view_pool.cpp              \
   file_storage.cpp                \
   fingerprint.cpp                 \
   gzip.cpp                        \
@@ -135,7 +135,6 @@ libtorrent_rasterbar_la_SOURCES = \
   stat.cpp                        \
   stat_cache.cpp                  \
   storage.cpp                     \
-  storage_piece_set.cpp           \
   storage_utils.cpp               \
   session_stats.cpp               \
   string_util.cpp                 \
@@ -162,6 +161,7 @@ libtorrent_rasterbar_la_SOURCES = \
   file_progress.cpp               \
   ffs.cpp                         \
   add_torrent_params.cpp          \
+  mmap.cpp                        \
   \
   $(KADEMLIA_SOURCES)             \
   \

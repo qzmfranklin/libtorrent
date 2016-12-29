@@ -276,10 +276,10 @@ namespace libtorrent {
 			info_hash
 		};
 
-		storage_holder storage = disk_thread.new_torrent(default_storage_constructor, std::move(params), std::shared_ptr<void>());
+		storage_holder storage = disk_thread.new_torrent(std::move(params)
+			, std::shared_ptr<void>());
 
 		settings_pack sett;
-		sett.set_int(settings_pack::cache_size, 0);
 		sett.set_int(settings_pack::aio_threads, 1);
 
 		disk_thread.set_settings(&sett);
