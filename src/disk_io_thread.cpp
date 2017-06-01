@@ -220,7 +220,7 @@ namespace libtorrent {
 
 			if (j->action == job_action_t::write)
 			{
-				m_store_buffer.erase({j->storage.get(), j->piece, j->d.io.offset});
+				m_store_buffer.erase({j->storage->storage_index(), j->piece, j->d.io.offset});
 			}
 			j->ret = status_t::fatal_disk_error;
 			j->error = e;
@@ -379,7 +379,7 @@ namespace libtorrent {
 				m_need_tick.push_back({aux::time_now() + minutes(2), j->storage});
 		}
 
-		m_store_buffer.erase({j->storage.get(), j->piece, j->d.io.offset});
+		m_store_buffer.erase({j->storage->storage_index(), j->piece, j->d.io.offset});
 
 		return ret != j->d.io.buffer_size
 			? status_t::fatal_disk_error : status_t::no_error;
@@ -445,7 +445,7 @@ namespace libtorrent {
 
 		TORRENT_ASSERT((r.start % m_buffer_pool.block_size()) == 0);
 
-		m_store_buffer.insert({j->storage.get(), j->piece, j->d.io.offset}
+		m_store_buffer.insert({j->storage->storage_index(), j->piece, j->d.io.offset}
 			, boost::get<disk_buffer_holder>(j->argument).get());
 
 		if (j->storage->is_blocked(j))
@@ -670,7 +670,7 @@ namespace libtorrent {
 			std::size_t const len = aux::numeric_cast<std::size_t>(
 				std::min(block_size, piece_size - offset));
 
-			if (!m_store_buffer.get({j->storage.get(), j->piece, offset}
+			if (!m_store_buffer.get({j->storage->storage_index(), j->piece, offset}
 				, [&](char* buf)
 				{
 					h.update({buf, len});

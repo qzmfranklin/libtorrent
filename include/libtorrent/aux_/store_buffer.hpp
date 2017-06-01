@@ -33,8 +33,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TORRENT_STORE_BUFFER
 #define TORRENT_STORE_BUFFER
 
-#include <map>
+#include <unordered_map>
 #include <mutex>
+
+#include "libtorrent/storage_defs.hpp"
+
+#include "libtorrent/aux_/disable_warnings_push.hpp"
+#include <boost/functional/hash.hpp>
+#include "libtorrent/aux_/disable_warnings_pop.hpp"
+
 
 namespace libtorrent {
 namespace aux {
@@ -43,18 +50,43 @@ namespace aux {
 // dictionary mapping locations to write jobs
 struct torrent_location
 {
-	torrent_location(default_storage* t, piece_index_t p, int o)
+	torrent_location(storage_index_t const t, piece_index_t const p, int o)
 		: torrent(t), piece(p), offset(o) {}
-	// TODO: this should use the storage index instead
-	default_storage* torrent;
+	storage_index_t torrent;
 	piece_index_t piece;
 	int offset;
-	bool operator<(torrent_location const& rhs) const
+	bool operator==(torrent_location const& rhs) const
 	{
 		return std::tie(torrent, piece, offset)
-			< std::tie(rhs.torrent, rhs.piece, rhs.offset);
+			== std::tie(rhs.torrent, rhs.piece, rhs.offset);
 	}
 };
+
+}
+}
+
+namespace std {
+
+template <>
+struct hash<libtorrent::aux::torrent_location>
+{
+	using argument_type = libtorrent::aux::torrent_location;
+	using result_type = std::size_t;
+	std::size_t operator()(argument_type const& l) const
+	{
+		using namespace libtorrent;
+		std::size_t ret = 0;
+		boost::hash_combine(ret, std::hash<storage_index_t>{}(l.torrent));
+		boost::hash_combine(ret, std::hash<piece_index_t>{}(l.piece));
+		boost::hash_combine(ret, std::hash<int>{}(l.offset));
+		return ret;
+	}
+};
+
+}
+
+namespace libtorrent {
+namespace aux {
 
 struct store_buffer
 {
@@ -88,9 +120,7 @@ struct store_buffer
 private:
 
 	std::mutex m_mutex;
-
-	// TODO: this should be a hash table
-	std::map<torrent_location, char*> m_store_buffer;
+	std::unordered_map<torrent_location, char*> m_store_buffer;
 };
 
 }
