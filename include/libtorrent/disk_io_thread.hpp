@@ -49,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/session_settings.hpp"
 #include "libtorrent/aux_/block_cache_reference.hpp"
 #include "libtorrent/aux_/store_buffer.hpp"
+#include "libtorrent/debug.hpp"
 
 #include <mutex>
 #include <condition_variable>
