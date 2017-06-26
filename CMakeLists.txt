@@ -124,6 +124,8 @@ set(sources
 	ffs
 	add_torrent_params
 	mmap
+	posix_disk_io
+	posix_storage
 
 # -- extensions --
 	ut_pex

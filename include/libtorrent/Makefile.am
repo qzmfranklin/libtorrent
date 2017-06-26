@@ -158,6 +158,7 @@ nobase_include_HEADERS = \
   web_peer_connection.hpp      \
   xml_parse.hpp                \
   span.hpp                     \
+  posix_disk_io.hpp            \
   \
   aux_/allocating_handler.hpp       \
   aux_/aligned_storage.hpp          \
@@ -209,6 +210,7 @@ nobase_include_HEADERS = \
   aux_/noexcept_movable.hpp         \
   aux_/mmap.hpp                     \
   aux_/store_buffer.hpp             \
+  aux_/posix_storage.hpp            \
   \
   extensions/smart_ban.hpp          \
   extensions/ut_metadata.hpp        \

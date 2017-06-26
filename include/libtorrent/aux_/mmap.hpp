@@ -42,6 +42,7 @@ namespace libtorrent {
 // for now
 using byte = char;
 
+// TODO: 3 move this into its own header
 namespace aux {
 
 	enum open_mode_t : std::uint32_t

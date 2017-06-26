@@ -88,6 +88,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/bind_to_device.hpp"
 #include "libtorrent/hex.hpp" // to_hex, from_hex
 #include "libtorrent/aux_/scope_end.hpp"
+#include "libtorrent/posix_disk_io.hpp"
 
 #ifndef TORRENT_DISABLE_LOGGING
 
@@ -537,9 +538,16 @@ namespace aux {
 	void session_impl::start_session(settings_pack pack
 		, disk_io_constructor_type disk_io_constructor)
 	{
+		// TODO: 3 have a function to create the default disk io instead, to
+		// contain the platform-specific logic
 		m_disk_thread = disk_io_constructor
 			? disk_io_constructor(m_io_service, m_stats_counters)
-			: std::unique_ptr<disk_interface>(new disk_io_thread(m_io_service, m_stats_counters));
+#if TORRENT_HAVE_MMAP
+			: std::unique_ptr<disk_interface>(new disk_io_thread(m_io_service, m_stats_counters))
+#else
+			: posix_disk_io_constructor(m_io_service, m_stats_counters)
+#endif
+			;
 
 		if (pack.has_val(settings_pack::alert_mask))
 		{

@@ -162,6 +162,8 @@ libtorrent_rasterbar_la_SOURCES = \
   ffs.cpp                         \
   add_torrent_params.cpp          \
   mmap.cpp                        \
+  posix_disk_io.cpp               \
+  posix_storage.cpp               \
   \
   $(KADEMLIA_SOURCES)             \
   \

@@ -81,14 +81,14 @@ namespace libtorrent {
 		, aux::file_view_pool& pool)
 		: m_files(params.files)
 		, m_file_priority(params.priorities)
+		, m_save_path(complete(params.path))
+		, m_part_file_name("." + aux::to_hex(params.info_hash) + ".parts")
 		, m_pool(pool)
 //		, m_allocate_files(params.mode == storage_mode_allocate)
 	{
 		if (params.mapped_files) m_mapped_files.reset(new file_storage(*params.mapped_files));
 
 		TORRENT_ASSERT(files().num_files() > 0);
-		m_save_path = complete(params.path);
-		m_part_file_name = "." + aux::to_hex(params.info_hash) + ".parts";
 	}
 
 	default_storage::~default_storage()
@@ -215,7 +215,7 @@ namespace libtorrent {
 			m_file_created.resize(files().num_files(), false);
 		}
 
-		// first, create all missing directories
+		// first, create zero-sized files
 		std::string last_path;
 		file_storage const& fs = files();
 		for (file_index_t file_index(0); file_index < fs.end_file(); ++file_index)
@@ -256,16 +256,6 @@ namespace libtorrent {
 					ec.operation = operation_t::file_fallocate;
 					return;
 				}
-/*
-				size = files().file_size(file_index);
-				f->set_size(size, ec.ec);
-				if (ec)
-				{
-					ec.file(file_index);
-					ec.operation = operation_t::file_fallocate;
-					break;
-				}
-*/
 			}
 			ec.ec.clear();
 		}
@@ -304,7 +294,7 @@ namespace libtorrent {
 		, storage_error& ec)
 	{
 		if (index < file_index_t(0) || index >= files().end_file()) return;
-		std::string old_name = files().file_path(index, m_save_path);
+		std::string const old_name = files().file_path(index, m_save_path);
 		m_pool.release(storage_index(), index);
 
 		// if the old file doesn't exist, just succeed and change the filename
