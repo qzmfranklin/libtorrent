@@ -211,6 +211,7 @@ nobase_include_HEADERS = \
   aux_/mmap.hpp                     \
   aux_/store_buffer.hpp             \
   aux_/posix_storage.hpp            \
+  aux_/open_mode.hpp                \
   \
   extensions/smart_ban.hpp          \
   extensions/ut_metadata.hpp        \

@@ -48,7 +48,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/bitfield.hpp"
 #include "libtorrent/span.hpp"
 #include "libtorrent/aux_/vector.hpp"
-#include "libtorrent/aux_/mmap.hpp" // for aux::open_mode_t
+#include "libtorrent/aux_/open_mode.hpp" // for aux::open_mode_t
 
 namespace libtorrent {
 

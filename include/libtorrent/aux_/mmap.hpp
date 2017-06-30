@@ -34,26 +34,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_MMAP_HPP
 
 #include "libtorrent/config.hpp"
-#include "libtorrent/flags.hpp"
 #include "libtorrent/disk_interface.hpp" // for open_file_state
+#include "libtorrent/aux_/open_mode.hpp"
 
 namespace libtorrent {
 
 // for now
 using byte = char;
-
-// TODO: 3 move this into its own header
-namespace aux {
-
-	enum open_mode_t : std::uint32_t
-	{ read_only = 0, write = 1, no_cache = 2, truncate = 4, no_atime = 8, random_access = 16 };
-
-}
-
-namespace flags {
-template <>
-struct enable_flag_operators<aux::open_mode_t> : std::true_type {};
-}
 
 namespace aux {
 

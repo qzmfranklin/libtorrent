@@ -39,7 +39,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/storage_defs.hpp"
 #include "libtorrent/aux_/storage_utils.hpp" // for iovec_t
 #include "libtorrent/hex.hpp" // to_hex
-#include "libtorrent/aux_/mmap.hpp" // for aux::open_mode_t
+#include "libtorrent/aux_/open_mode.hpp" // for aux::open_mode_t
 #include <memory>
 #include <string>
 
