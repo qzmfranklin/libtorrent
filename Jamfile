@@ -43,6 +43,8 @@ else
 		: : $(boost-include-path) ;
 }
 
+use-project /try_signal : ./deps/try_signal ;
+
 VERSION = 1.2.0 ;
 
 # rule for linking the correct libraries depending
@@ -750,6 +752,7 @@ lib torrent
 	<link>shared:<define>TORRENT_BUILDING_SHARED
 	<define>BOOST_NO_DEPRECATED
 	<link>shared:<define>BOOST_SYSTEM_SOURCE
+	<library>/try_signal
 
 	<dht>on:<source>src/kademlia/$(KADEMLIA_SOURCES).cpp
 	<dht>on:<source>ed25519/src/$(ED25519_SOURCES).cpp

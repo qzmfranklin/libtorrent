@@ -32,6 +32,8 @@ KADEMLIA_SOURCES = \
   ../ed25519/src/sign.cpp       \
   ../ed25519/src/verify.cpp     \
   hasher512.cpp
+  ../deps/try_signal/try_signal.cpp \
+  ../deps/try_signal/signal_error_code.cpp \
 endif
 
 if ! WITH_OPENSSL
@@ -172,7 +174,7 @@ libtorrent_rasterbar_la_SOURCES = \
 libtorrent_rasterbar_la_LDFLAGS = -version-info $(INTERFACE_VERSION_INFO)
 libtorrent_rasterbar_la_LIBADD = @OPENSSL_LIBS@
 
-AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/ed25519/src @DEBUGFLAGS@ @OPENSSL_INCLUDES@
+AM_CPPFLAGS = -DTORRENT_BUILDING_LIBRARY -I$(top_srcdir)/include -I$(top_srcdir)/deps/try_signal -I$(top_srcdir)/ed25519/src @DEBUGFLAGS@ @OPENSSL_INCLUDES@
 AM_CFLAGS = -I$(top_srcdir)/ed25519/src -std=c99
 
 AM_LDFLAGS = @OPENSSL_LDFLAGS@

@@ -35,6 +35,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/storage_utils.hpp"
 #include "libtorrent/hasher.hpp"
 
+#include "try_signal.hpp"
+
 #include <ctime>
 #include <algorithm>
 #include <set>
@@ -134,11 +136,12 @@ namespace libtorrent {
 
 				m_part_file->export_file([&f, &ec](std::int64_t file_offset, span<char> buf)
 				{
-					// TODO: 4 error handling
 					auto file_range = f.range().subspan(std::size_t(file_offset));
 					TORRENT_ASSERT(file_range.size() >= buf.size());
-					std::memcpy(const_cast<char*>(file_range.data())
-						, buf.data(), buf.size());
+					sig::try_signal([&]{
+						std::memcpy(const_cast<char*>(file_range.data())
+							, buf.data(), buf.size());
+					});
 					// TODO: memcpy() casts away volatile, come up with some solution
 					// to using std::copy()
 					// std::copy(buf.begin(), buf.end(), f.range().begin());
@@ -455,12 +458,14 @@ namespace libtorrent {
 				file_range = file_range.subspan(std::size_t(file_offset));
 				for (auto buf : vec)
 				{
-					// TODO: error handling
 					if (file_range.empty()) break;
 					if (file_range.size() < buf.size()) buf = buf.first(file_range.size());
-					std::memcpy(buf.data()
-						, const_cast<char const*>(file_range.data())
-						, buf.size());
+
+					sig::try_signal([&]{
+						std::memcpy(buf.data()
+							, const_cast<char const*>(file_range.data())
+							, buf.size());
+					});
 					// TODO: memcpy() casts away volatile, come up with some solution
 					// to using std::copy()
 					// std::copy(file_vec.begin(), file_vec.end(), buf.begin());
@@ -537,10 +542,12 @@ namespace libtorrent {
 			span<byte volatile> file_range = handle.range().subspan(std::size_t(file_offset));
 			for (auto buf : vec)
 			{
-				// TODO: error handling
 				TORRENT_ASSERT(file_range.size() >= buf.size());
-				std::memcpy(const_cast<char*>(file_range.data())
-					, buf.data(), buf.size());
+
+				sig::try_signal([&]{
+					std::memcpy(const_cast<char*>(file_range.data())
+						, buf.data(), buf.size());
+					});
 				// TODO: memcpy() casts away volatile, come up with some solution
 				// to using std::copy()
 				// std::copy(buf.begin(), buf.end(), file_range.begin());
