@@ -50,6 +50,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/vector.hpp"
 #include "libtorrent/aux_/open_mode.hpp" // for aux::open_mode_t
 
+#include "libtorrent/aux_/disable_warnings_push.hpp"
+#include <boost/optional.hpp>
+#include "libtorrent/aux_/disable_warnings_pop.hpp"
+
 namespace libtorrent {
 
 	class session;
@@ -175,9 +179,9 @@ namespace aux {
 		mutable stat_cache m_stat_cache;
 
 		// helper function to open a file in the file pool with the right mode
-		aux::file_view open_file(aux::session_settings const&, file_index_t
+		boost::optional<aux::file_view> open_file(aux::session_settings const&, file_index_t
 			, aux::open_mode_t, storage_error&) const;
-		aux::file_view open_file_impl(aux::session_settings const&
+		boost::optional<aux::file_view> open_file_impl(aux::session_settings const&
 			, file_index_t, aux::open_mode_t, error_code&) const;
 
 		aux::vector<std::uint8_t, file_index_t> m_file_priority;

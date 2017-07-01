@@ -45,6 +45,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/aux_/disable_warnings_push.hpp"
 
+#include <boost/optional.hpp>
+
 #if defined(__APPLE__)
 // for getattrlist()
 #include <sys/attr.h>
@@ -136,7 +138,7 @@ namespace libtorrent {
 
 				m_part_file->export_file([&f, &ec](std::int64_t file_offset, span<char> buf)
 				{
-					auto file_range = f.range().subspan(std::size_t(file_offset));
+					auto file_range = f->range().subspan(std::size_t(file_offset));
 					TORRENT_ASSERT(file_range.size() >= buf.size());
 					sig::try_signal([&]{
 						std::memcpy(const_cast<char*>(file_range.data())
@@ -144,7 +146,7 @@ namespace libtorrent {
 					});
 					// TODO: memcpy() casts away volatile, come up with some solution
 					// to using std::copy()
-					// std::copy(buf.begin(), buf.end(), f.range().begin());
+					// std::copy(buf.begin(), buf.end(), f->range().begin());
 				}, fs.file_offset(i), fs.file_size(i), ec.ec);
 
 				if (ec)
@@ -452,7 +454,7 @@ namespace libtorrent {
 
 			std::size_t ret = 0;
 			error_code e;
-			span<byte const volatile> file_range = handle.range();
+			span<byte const volatile> file_range = handle->range();
 			if (file_range.size() > std::size_t(file_offset))
 			{
 				file_range = file_range.subspan(std::size_t(file_offset));
@@ -533,13 +535,13 @@ namespace libtorrent {
 			// we're writing to it
 			m_stat_cache.set_dirty(file_index);
 
-			aux::file_view handle = open_file(sett, file_index
+			boost::optional<aux::file_view> handle = open_file(sett, file_index
 				, aux::open_mode_t::write | flags, ec);
 			if (ec) return -1;
 
 			std::size_t ret = 0;
 			error_code e;
-			span<byte volatile> file_range = handle.range().subspan(std::size_t(file_offset));
+			span<byte volatile> file_range = handle->range().subspan(std::size_t(file_offset));
 			for (auto buf : vec)
 			{
 				TORRENT_ASSERT(file_range.size() >= buf.size());
@@ -625,7 +627,7 @@ namespace libtorrent {
 
 			std::size_t ret = 0;
 			error_code e;
-			span<byte const volatile> file_range = handle.range();
+			span<byte const volatile> file_range = handle->range();
 			if (file_range.size() > std::size_t(file_offset))
 			{
 				file_range = file_range.subspan(std::size_t(file_offset)
@@ -649,7 +651,7 @@ namespace libtorrent {
 
 	// a wrapper around open_file_impl that, if it fails, makes sure the
 	// directories have been created and retries
-	aux::file_view default_storage::open_file(aux::session_settings const& sett
+	boost::optional<aux::file_view> default_storage::open_file(aux::session_settings const& sett
 		, file_index_t const file
 		, aux::open_mode_t mode, storage_error& ec) const
 	{
@@ -665,7 +667,7 @@ namespace libtorrent {
 			mode |= (m_file_created[file] == false) ? aux::open_mode_t::truncate : aux::open_mode_t::read_only;
 		}
 
-		aux::file_view h = open_file_impl(sett, file, mode, ec.ec);
+		boost::optional<aux::file_view> h = open_file_impl(sett, file, mode, ec.ec);
 		if (test(mode & aux::open_mode_t::write)
 			&& ec.ec == boost::system::errc::no_such_file_or_directory)
 		{
@@ -679,7 +681,7 @@ namespace libtorrent {
 			{
 				ec.file(file);
 				ec.operation = operation_t::mkdir;
-				return aux::file_view();
+				return {};
 			}
 
 			// if the directory creation failed, don't try to open the file again
@@ -690,7 +692,7 @@ namespace libtorrent {
 		{
 			ec.file(file);
 			ec.operation = operation_t::file_open;
-			return aux::file_view();
+			return {};
 		}
 		if (test(mode & aux::open_mode_t::truncate))
 		{
@@ -702,7 +704,7 @@ namespace libtorrent {
 		return h;
 	}
 
-	aux::file_view default_storage::open_file_impl(aux::session_settings const& sett
+	boost::optional<aux::file_view> default_storage::open_file_impl(aux::session_settings const& sett
 		, file_index_t file
 		, aux::open_mode_t mode
 		, error_code& ec) const

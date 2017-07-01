@@ -146,9 +146,6 @@ namespace aux {
 	struct TORRENT_EXTRA_EXPORT file_view
 	{
 		friend struct file_mapping;
-		// TODO: 2 this is a hack. Use exceptions for error handling or
-		// boost::optional
-		file_view() {}
 		file_view(file_view&&) = default;
 		file_view& operator=(file_view&&) = default;
 
