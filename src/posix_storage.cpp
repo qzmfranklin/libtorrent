@@ -34,6 +34,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/posix_storage.hpp"
 #include "libtorrent/aux_/session_settings.hpp"
 #include "libtorrent/aux_/path.hpp" // for bufs_size
+#include "libtorrent/aux_/open_mode.hpp"
+
+using namespace libtorrent::flags; // for flag operators
 
 namespace libtorrent {
 namespace aux {
@@ -77,7 +80,7 @@ namespace aux {
 				return -1;
 			}
 
-			int ret = 0;
+			std::size_t ret = 0;
 			error_code e;
 			for (auto buf : vec)
 			{
@@ -96,8 +99,8 @@ namespace aux {
 			fclose(f);
 
 			// we either get an error or 0 or more bytes read
-			TORRENT_ASSERT(e || ret >= 0);
-			TORRENT_ASSERT(ret <= bufs_size(vec));
+			TORRENT_ASSERT(e || ret > 0);
+			TORRENT_ASSERT(int(ret) <= bufs_size(vec));
 
 			if (e)
 			{
@@ -106,7 +109,7 @@ namespace aux {
 				return -1;
 			}
 
-			return ret;
+			return static_cast<int>(ret);
 		});
 	}
 
@@ -138,7 +141,7 @@ namespace aux {
 				return -1;
 			}
 
-			int ret = 0;
+			std::size_t ret = 0;
 			for (auto buf : vec)
 			{
 				std::size_t const r = fwrite(buf.data(), 1, buf.size(), f);
@@ -162,7 +165,7 @@ namespace aux {
 				return -1;
 			}
 
-			return ret;
+			return static_cast<int>(ret);
 		});
 	}
 
@@ -279,16 +282,20 @@ namespace aux {
 					ec.operation = operation_t::file_fallocate;
 					return;
 				}
+#ifndef TORRENT_WINDOWS
 				if (file_size > 0)
 				{
 					int ret = ftruncate(fileno(f), file_size);
 					if (ret < 0)
 					{
+						fclose(f);
 						ec.file(file_index);
 						ec.operation = operation_t::file_fallocate;
 						return;
 					}
 				}
+#endif
+				fclose(f);
 			}
 			ec.ec.clear();
 		}
@@ -299,7 +306,7 @@ namespace aux {
 	{
 		std::string const fn = files().file_path(idx, m_save_path);
 
-		char const* mode_str = (mode & open_mode_t::write) == open_mode_t::write
+		char const* mode_str = test(mode & open_mode_t::write)
 			? "r+" : "r";
 
 		FILE* f = fopen(fn.c_str(), mode_str);
@@ -310,7 +317,7 @@ namespace aux {
 			// if we fail to open a file for writing, and the error is ENOENT,
 			// it is likely because the directory we're creating the file in
 			// does not exist. Create the directory and try again.
-			if ((mode & open_mode_t::write)
+			if (test(mode & open_mode_t::write)
 				&& ec == boost::system::errc::no_such_file_or_directory)
 			{
 				// this means the directory the file is in doesn't exist.
@@ -336,6 +343,10 @@ namespace aux {
 				return nullptr;
 			}
 		}
+
+#ifdef WIN32
+#define fseek _fseeki64
+#endif
 
 		if (offset != 0)
 		{

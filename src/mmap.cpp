@@ -30,11 +30,17 @@ POSSIBILITY OF SUCH DAMAGE.
 
 */
 
+#include "libtorrent/config.hpp"
+
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 #include "libtorrent/aux_/mmap.hpp"
 #include "libtorrent/aux_/throw.hpp"
+#include "libtorrent/aux_/path.hpp"
 #include "libtorrent/error_code.hpp"
 #include <cstdint>
 
+#if TORRENT_HAVE_MMAP
 #include <sys/mman.h> // for mmap
 #include <sys/stat.h>
 #include <fcntl.h> // for open
@@ -42,56 +48,103 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "libtorrent/aux_/disable_warnings_push.hpp"
 auto const map_failed = MAP_FAILED;
 #include "libtorrent/aux_/disable_warnings_pop.hpp"
+#endif
 
 namespace libtorrent {
 namespace aux {
+
 namespace {
-
-	int file_flags(std::uint32_t const mode)
-	{
-		return (mode & open_mode_t::write)
-			? O_RDWR | O_CREAT : O_RDONLY
-#ifdef O_NOATIME
-			| (mode & open_mode_t::noatime)
-			? O_NOATIME : 0
-#endif
-			;
-	}
-
-	int mmap_prot(std::uint32_t const m)
-	{
-		return (m & open_mode_t::write)
-			? (PROT_READ | PROT_WRITE)
-			: PROT_READ;
-	}
-
-	int mmap_flags(std::uint32_t const m)
-	{
-		return ((m & open_mode_t::no_cache)
-			? MAP_NOCACHE
-			: 0)
-			| MAP_FILE | MAP_SHARED;
-	}
-
-	std::size_t memory_map_size(std::uint32_t const mode
+	std::size_t memory_map_size(open_mode_t const mode
 		, std::size_t const file_size, file_handle const& fh)
 	{
 		// if we're opening the file in write-mode, we'll always truncate it to
 		// the right size, but in read mode, we should not map more than the
 		// file size
-		return (mode & open_mode_t::write)
+		return test(mode & open_mode_t::write)
 			? file_size : std::min(std::size_t(fh.get_size()), file_size);
 	}
 
 
 } // anonymous
 
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+
+namespace {
+
+	DWORD file_access(open_mode_t const mode)
+	{
+		return test(mode & open_mode_t::write)
+			? GENERIC_WRITE | GENERIC_READ
+			: GENERIC_READ;
+	}
+
+	DWORD file_share(open_mode_t)
+	{
+		return FILE_SHARE_WRITE | FILE_SHARE_READ | FILE_SHARE_DELETE;
+	}
+
+	DWORD file_create(open_mode_t const mode)
+	{
+		return test(mode & open_mode_t::write) ? OPEN_ALWAYS : OPEN_EXISTING;
+	}
+
+	DWORD file_flags(open_mode_t const mode)
+	{
+		return test(mode & open_mode_t::hidden) ? FILE_ATTRIBUTE_HIDDEN : FILE_ATTRIBUTE_NORMAL;
+	}
+
+} // anonymous
+
+file_handle::file_handle(string_view name, std::size_t
+	, open_mode_t const mode)
+	: m_fd(CreateFileW(convert_to_native_path_string(name).c_str()
+		, file_access(mode)
+		, file_share(mode)
+		, nullptr
+		, file_create(mode)
+		, file_flags(mode)
+		, nullptr))
+{
+	if (m_fd == invalid_handle) throw_ex<system_error>(error_code(GetLastError(), system_category()));
+}
+
+#else
+
+namespace {
+
+	int file_flags(open_mode_t const mode)
+	{
+		return (test(mode & open_mode_t::write))
+			? O_RDWR | O_CREAT : O_RDONLY
+#ifdef O_NOATIME
+			| test(mode & open_mode_t::noatime)
+			? O_NOATIME : 0
+#endif
+			;
+	}
+
+	int mmap_prot(open_mode_t const m)
+	{
+		return test(m & open_mode_t::write)
+			? (PROT_READ | PROT_WRITE)
+			: PROT_READ;
+	}
+
+	int mmap_flags(open_mode_t const m)
+	{
+		return (test(m & open_mode_t::no_cache)
+			? MAP_NOCACHE
+			: 0)
+			| MAP_FILE | MAP_SHARED;
+	}
+} // anonymous
+
 file_handle::file_handle(string_view name, std::size_t const size
-	, std::uint32_t const mode)
+	, open_mode_t const mode)
 	: m_fd(open(name.to_string().c_str(), file_flags(mode), 0755))
 {
 #ifdef O_NOATIME
-	if (m_fd < 0 && (mode & open_mode_t::no_atime))
+	if (m_fd < 0 && test(mode & open_mode_t::no_atime))
 	{
 		// NOATIME may not be allowed for certain files, it's best-effort,
 		// so just try again without NOATIME
@@ -100,42 +153,117 @@ file_handle::file_handle(string_view name, std::size_t const size
 	}
 #endif
 	if (m_fd < 0) throw_ex<system_error>(error_code(errno, system_category()));
-	if (mode & open_mode_t::truncate)
+	if (test(mode & open_mode_t::truncate))
 	{
-		if (ftruncate(m_fd, static_cast<off_t>(size)) < 0) throw_ex<system_error>(error_code(errno, system_category()));
+		if (ftruncate(m_fd, static_cast<off_t>(size)) < 0)
+		{
+			int const err = errno;
+			close(m_fd);
+			throw_ex<system_error>(error_code(err, system_category()));
+		}
 	}
 }
+#endif
 
-file_handle::~file_handle() { if (m_fd >= 0) close(m_fd); }
+void file_handle::close()
+{
+	if (m_fd == invalid_handle) return;
+#if TORRENT_HAVE_MMAP
+	::close(m_fd);
+#else
+	CloseHandle(m_fd);
+#endif
+	m_fd = invalid_handle;
+}
+
+file_handle::~file_handle() { close(); }
 
 file_handle& file_handle::operator=(file_handle&& rhs)
 {
-	if (m_fd >= 0) close(m_fd);
+	if (&rhs == this) return *this;
+	close();
 	m_fd = rhs.m_fd;
-	rhs.m_fd = -1;
+	rhs.m_fd = invalid_handle;
 	return *this;
 }
 
 std::int64_t file_handle::get_size() const
 {
-#ifdef TORRENT_WINDOWS
-	LARGE_INTEGER file_size;
-	if (!GetFileSizeEx(fd(), &file_size))
-		throw_ex<system_error>(error_code(GetLastError(), system_category()));
-	return file_size.QuadPart;
-#else
+#if TORRENT_HAVE_MMAP
 	struct ::stat fs;
 	if (::fstat(fd(), &fs) != 0)
 		throw_ex<system_error>(error_code(errno, system_category()));
 	return fs.st_size;
+#else
+	LARGE_INTEGER file_size;
+	if (GetFileSizeEx(fd(), &file_size) == 0)
+		throw_ex<system_error>(error_code(GetLastError(), system_category()));
+	return file_size.QuadPart;
 #endif
 }
 
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+
+// ======== file mapping handle ========
+namespace {
+
+int map_protect(open_mode_t const m)
+{
+	return test(m & open_mode_t::write) ? PAGE_READWRITE : PAGE_READONLY;
+}
+
+}
+
+file_mapping_handle::file_mapping_handle(file_handle file, open_mode_t const mode
+	, std::size_t const size)
+	: m_file(std::move(file))
+	, m_mapping(CreateFileMapping(m_file.fd()
+		, nullptr
+		, map_protect(mode)
+		, size >> 32
+		, size & 0xffffffff
+		, nullptr))
+	{
+		// CreateFileMapping will extend the underlying file to the specified // size.
+		// you can't map files of size 0, so we just set it to null. We
+		// still need to create the empty file.
+		if (size > 0 && m_mapping == nullptr)
+			throw_ex<system_error>(error_code(GetLastError(), system_category()));
+	}
+	file_mapping_handle::~file_mapping_handle() { close(); }
+
+	file_mapping_handle::file_mapping_handle(file_mapping_handle&& fm)
+		: m_file(std::move(fm.m_file)), m_mapping(fm.m_mapping)
+	{
+		fm.m_mapping = INVALID_HANDLE_VALUE;
+	}
+
+	file_mapping_handle& file_mapping_handle::operator=(file_mapping_handle&& fm)
+	{
+		if (&fm == this) return *this;
+		close();
+		m_file = std::move(fm.m_file);
+		m_mapping = fm.m_mapping;
+		fm.m_mapping = INVALID_HANDLE_VALUE;
+		return *this;
+	}
+
+	void file_mapping_handle::close()
+	{
+		if (m_mapping == INVALID_HANDLE_VALUE) return;
+		CloseHandle(m_mapping);
+		m_mapping = INVALID_HANDLE_VALUE;
+	}
+
+#endif // HAVE_MAP_VIEW_OF_FILE
+
 // =========== file mapping ============
 
-file_mapping::file_mapping(file_handle file, std::uint32_t const mode, std::size_t const file_size)
-	: m_file(std::move(file))
-	, m_size(memory_map_size(mode, file_size, m_file))
+#if TORRENT_HAVE_MMAP
+
+file_mapping::file_mapping(file_handle file, open_mode_t const mode, std::size_t const file_size)
+	: m_size(memory_map_size(mode, file_size, file))
+	, m_file(std::move(file))
 	, m_mapping(m_size > 0 ? mmap(nullptr, m_size, mmap_prot(mode), mmap_flags(mode), m_file.fd(), 0)
 	: nullptr)
 {
@@ -147,9 +275,46 @@ file_mapping::file_mapping(file_handle file, std::uint32_t const mode, std::size
 	}
 }
 
+void file_mapping::close()
+{
+	if (m_mapping == nullptr) return;
+	munmap(m_mapping, m_size);
+	m_mapping = nullptr;
+}
+
+#else
+
+namespace {
+DWORD map_access(open_mode_t const m)
+{
+	return test(m & open_mode_t::write) ? FILE_MAP_READ | FILE_MAP_WRITE : FILE_MAP_READ ;
+}
+} // anonymous
+
+file_mapping::file_mapping(file_handle file, open_mode_t const mode
+	, std::size_t const file_size)
+	: m_size(memory_map_size(mode, file_size, file))
+	, m_file(std::move(file), mode, m_size)
+	, m_mapping(MapViewOfFile(m_file.handle()
+		, map_access(mode), 0, 0, m_size))
+{
+	// you can't create an mmap of size 0, so we just set it to null. We
+	// still need to create the empty file.
+	if (file_size > 0 && m_mapping == nullptr)
+		throw_ex<system_error>(error_code(GetLastError(), system_category()));
+}
+
+void file_mapping::close()
+{
+	if (m_mapping == nullptr) return;
+	UnmapViewOfFile(m_mapping);
+	m_mapping = nullptr;
+}
+#endif
+
 file_mapping::file_mapping(file_mapping&& rhs)
-	: m_file(std::move(rhs.m_file))
-	, m_size(rhs.m_size)
+	: m_size(rhs.m_size)
+	, m_file(std::move(rhs.m_file))
 	, m_mapping(rhs.m_mapping)
 	{
 		TORRENT_ASSERT(m_mapping);
@@ -159,25 +324,23 @@ file_mapping::file_mapping(file_mapping&& rhs)
 	file_mapping& file_mapping::operator=(file_mapping&& rhs)
 	{
 		if (&rhs == this) return *this;
-		if (m_mapping) munmap(m_mapping, m_size);
+		close();
 		m_file = std::move(rhs.m_file);
-		m_mapping = rhs.m_mapping;
 		m_size = rhs.m_size;
+		m_mapping = rhs.m_mapping;
 		rhs.m_mapping = nullptr;
 		return *this;
 	}
 
-	file_mapping::~file_mapping()
-	{
-		if (m_mapping) munmap(m_mapping, m_size);
-	}
+	file_mapping::~file_mapping() { close(); }
 
 	file_view file_mapping::view()
 	{
 		return file_view(shared_from_this());
 	}
 
-
 } // aux
 } // libtorrent
+
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
 

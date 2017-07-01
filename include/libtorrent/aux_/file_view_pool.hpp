@@ -76,7 +76,7 @@ namespace aux {
 		// file_storage ``fs`` opened at save path ``p``. ``m`` is the
 		// file open mode (see file::open_mode_t).
 		file_view open_file(storage_index_t st, std::string const& p
-			, file_index_t file_index, file_storage const& fs, std::uint32_t m);
+			, file_index_t file_index, file_storage const& fs, open_mode_t m);
 
 		// release all file views belonging to the specified storage_interface
 		// (``st``) the overload that takes ``file_index`` releases only the file
@@ -106,7 +106,7 @@ namespace aux {
 		{
 			file_entry(file_id k
 				, string_view name
-				, std::uint32_t const m
+				, open_mode_t const m
 				, std::size_t const size)
 				: key(k)
 				, mapping(std::make_shared<file_mapping>(file_handle(name, size, m), m, size))
@@ -116,7 +116,7 @@ namespace aux {
 			file_id key;
 			std::shared_ptr<file_mapping> mapping;
 			time_point last_use{aux::time_now()};
-			std::uint32_t mode = 0;
+			open_mode_t mode = open_mode_t::read_only;
 		};
 
 		using files_container = mi::multi_index_container<

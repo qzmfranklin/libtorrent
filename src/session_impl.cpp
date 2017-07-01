@@ -542,7 +542,7 @@ namespace aux {
 		// contain the platform-specific logic
 		m_disk_thread = disk_io_constructor
 			? disk_io_constructor(m_io_service, m_stats_counters)
-#if TORRENT_HAVE_MMAP
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
 			: std::unique_ptr<disk_interface>(new disk_io_thread(m_io_service, m_stats_counters))
 #else
 			: posix_disk_io_constructor(m_io_service, m_stats_counters)

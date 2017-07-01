@@ -260,6 +260,10 @@ POSSIBILITY OF SUCH DAMAGE.
 # define TORRENT_USE_GETIPFORWARDTABLE 1
 #endif
 
+#ifndef TORRENT_HAVE_MAP_VIEW_OF_FILE
+#define TORRENT_HAVE_MAP_VIEW_OF_FILE 1
+#endif
+
 # if !defined TORRENT_USE_LIBCRYPTO && !defined TORRENT_USE_LIBGCRYPT
 // unless some other crypto library has been specified, default to the native
 // windows CryptoAPI
@@ -460,6 +464,10 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef TORRENT_HAVE_MMAP
 #define TORRENT_HAVE_MMAP 0
+#endif
+
+#ifndef TORRENT_HAVE_MAP_VIEW_OF_FILE
+#define TORRENT_HAVE_MAP_VIEW_OF_FILE 0
 #endif
 
 #ifndef TORRENT_COMPLETE_TYPES_REQUIRED

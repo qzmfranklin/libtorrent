@@ -57,6 +57,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <memory>
 #include <vector>
 
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 namespace libtorrent {
 
 	struct add_torrent_params;
@@ -283,4 +285,6 @@ namespace libtorrent {
 	};
 }
 
-#endif
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
+
+#endif // TORRENT_DISK_IO_THREAD

@@ -209,7 +209,7 @@ namespace {
 			return false;
 		}
 
-		void async_hash(storage_index_t storage, piece_index_t const piece, std::uint8_t flags
+		void async_hash(storage_index_t storage, piece_index_t const piece, std::uint8_t
 			, std::function<void(piece_index_t, sha1_hash const&, storage_error const&)> handler) override
 		{
 			time_point const start_time = clock_type::now();
@@ -241,7 +241,7 @@ namespace {
 				int const ret = st->readv(m_settings, b, piece, offset, error);
 				offset += block_size;
 				if (ret <= 0) break;
-				ph.update(b.first(ret));
+				ph.update(b.first(std::size_t(ret)));
 			}
 
 			sha1_hash const hash = ph.final();
@@ -260,7 +260,7 @@ namespace {
 			m_ios.post([=]{ handler(piece, hash, error); });
 		}
 
-		void async_move_storage(storage_index_t storage, std::string p, move_flags_t flags
+		void async_move_storage(storage_index_t, std::string p, move_flags_t
 			, std::function<void(status_t, std::string const&, storage_error const&)> handler) override
 		{
 			m_ios.post([=]{
@@ -334,8 +334,8 @@ namespace {
 			m_ios.post(handler);
 		}
 
-		void async_set_file_priority(storage_index_t storage
-			, aux::vector<std::uint8_t, file_index_t> prio
+		void async_set_file_priority(storage_index_t
+			, aux::vector<std::uint8_t, file_index_t>
 			, std::function<void(storage_error const&)> handler) override
 		{
 			m_ios.post([=]{
@@ -343,7 +343,7 @@ namespace {
 			});
 		}
 
-		void async_clear_piece(storage_index_t storage, piece_index_t index
+		void async_clear_piece(storage_index_t, piece_index_t index
 			, std::function<void(piece_index_t)> handler) override
 		{
 			m_ios.post([=]{ handler(index); });
@@ -353,7 +353,7 @@ namespace {
 		void free_disk_buffer(char* b, aux::block_cache_reference const&) override
 		{ m_buffer_pool.free_buffer(b); }
 
-		void update_stats_counters(counters& c) const override {}
+		void update_stats_counters(counters&) const override {}
 
 		std::vector<open_file_state> get_status(storage_index_t) const override
 		{ return {}; }

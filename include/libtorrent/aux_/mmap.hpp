@@ -34,8 +34,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #define TORRENT_MMAP_HPP
 
 #include "libtorrent/config.hpp"
+
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 #include "libtorrent/disk_interface.hpp" // for open_file_state
 #include "libtorrent/aux_/open_mode.hpp"
+
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif // TORRENT_HAVE_MAP_VIEW_OF_FILE
 
 namespace libtorrent {
 
@@ -48,29 +58,60 @@ namespace aux {
 
 	struct TORRENT_EXTRA_EXPORT file_handle
 	{
-		file_handle(string_view name, std::size_t const size, std::uint32_t const mode);
+		file_handle(string_view name, std::size_t size, open_mode_t mode);
 		file_handle(file_handle const& rhs) = delete;
 		file_handle& operator=(file_handle const& rhs) = delete;
 
-		file_handle(file_handle&& rhs) : m_fd(rhs.m_fd) { rhs.m_fd = -1; }
+		file_handle(file_handle&& rhs) : m_fd(rhs.m_fd) { rhs.m_fd = invalid_handle; }
 		file_handle& operator=(file_handle&& rhs);
 
 		~file_handle();
 
 		std::int64_t get_size() const;
 
-		int fd() const { return m_fd; }
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+		using native_handle_t = HANDLE;
+#else
+		using native_handle_t = int;
+#endif
+
+		native_handle_t fd() const { return m_fd; }
 	private:
-		int m_fd;
+		void close();
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+		static constexpr native_handle_t invalid_handle = INVALID_HANDLE_VALUE;
+#else
+		static constexpr native_handle_t invalid_handle = -1;
+#endif
+		native_handle_t m_fd;
 	};
 
 	struct file_view;
+
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+	struct TORRENT_EXTRA_EXPORT file_mapping_handle
+	{
+		file_mapping_handle(file_handle file, open_mode_t const mode, std::size_t size);
+		~file_mapping_handle();
+		file_mapping_handle(file_mapping_handle const&) = delete;
+		file_mapping_handle& operator=(file_mapping_handle const&) = delete;
+
+		file_mapping_handle(file_mapping_handle&& fm);
+		file_mapping_handle& operator=(file_mapping_handle&& fm);
+
+		HANDLE handle() const { return m_mapping; }
+	private:
+		void close();
+		file_handle m_file;
+		HANDLE m_mapping;
+	};
+#endif
 
 	struct TORRENT_EXTRA_EXPORT file_mapping : std::enable_shared_from_this<file_mapping>
 	{
 		friend struct file_view;
 
-		file_mapping(file_handle file, std::uint32_t const mode, std::size_t const file_size);
+		file_mapping(file_handle file, open_mode_t const mode, std::size_t const file_size);
 
 		// non-copyable
 		file_mapping(file_mapping const&) = delete;
@@ -84,6 +125,8 @@ namespace aux {
 		file_view view();
 	private:
 
+		void close();
+
 		// the memory range this file has been mapped into
 		span<byte volatile> memory()
 		{
@@ -91,8 +134,12 @@ namespace aux {
 			return { static_cast<byte volatile*>(m_mapping), m_size };
 		}
 
-		file_handle m_file;
 		std::size_t m_size;
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+		file_mapping_handle m_file;
+#else
+		file_handle m_file;
+#endif
 		void* m_mapping;
 	};
 
@@ -124,6 +171,8 @@ namespace aux {
 
 } // aux
 } // libtorrent
+
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
 
 #endif
 

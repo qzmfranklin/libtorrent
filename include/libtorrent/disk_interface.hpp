@@ -62,7 +62,7 @@ namespace libtorrent {
 
 	struct storage_holder;
 
-	enum file_open_mode
+	enum file_open_mode : std::uint8_t
 	{
 		// open the file for reading only
 		read_only = 0,
@@ -108,7 +108,7 @@ namespace libtorrent {
 		//
 		// Note that the read/write mode is not a bitmask. The two least significant bits are used
 		// to represent the read/write mode. Those bits can be masked out using the ``rw_mask`` constant.
-		std::uint32_t open_mode;
+		file_open_mode open_mode;
 
 		// a (high precision) timestamp of when the file was last used.
 		time_point last_use;

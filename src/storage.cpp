@@ -203,7 +203,7 @@ namespace libtorrent {
 	void default_storage::initialize(aux::session_settings const& sett, storage_error& ec)
 	{
 		m_stat_cache.reserve(files().num_files());
-
+/*
 #ifdef TORRENT_WINDOWS
 		// don't do full file allocations on network drives
 		std::wstring file_name = convert_to_wstring(m_save_path);
@@ -212,7 +212,7 @@ namespace libtorrent {
 		if (drive_type == DRIVE_REMOTE)
 			m_allocate_files = false;
 #endif
-
+*/
 		{
 			std::unique_lock<std::mutex> l(m_file_created_mutex);
 			m_file_created.resize(files().num_files(), false);
@@ -450,7 +450,7 @@ namespace libtorrent {
 			auto handle = open_file(sett, file_index, flags, ec);
 			if (ec) return -1;
 
-			int ret = 0;
+			std::size_t ret = 0;
 			error_code e;
 			span<byte const volatile> file_range = handle.range();
 			if (file_range.size() > std::size_t(file_offset))
@@ -479,8 +479,8 @@ namespace libtorrent {
 			ec.operation = operation_t::file_read;
 
 			// we either get an error or 0 or more bytes read
-			TORRENT_ASSERT(e || ret >= 0);
-			TORRENT_ASSERT(ret <= bufs_size(vec));
+			TORRENT_ASSERT(e || ret > 0);
+			TORRENT_ASSERT(int(ret) <= bufs_size(vec));
 
 			if (e)
 			{
@@ -489,7 +489,7 @@ namespace libtorrent {
 				return -1;
 			}
 
-			return ret;
+			return static_cast<int>(ret);
 		});
 	}
 
@@ -537,7 +537,7 @@ namespace libtorrent {
 				, aux::open_mode_t::write | flags, ec);
 			if (ec) return -1;
 
-			int ret = 0;
+			std::size_t ret = 0;
 			error_code e;
 			span<byte volatile> file_range = handle.range().subspan(std::size_t(file_offset));
 			for (auto buf : vec)
@@ -566,7 +566,7 @@ namespace libtorrent {
 				return -1;
 			}
 
-			return ret;
+			return static_cast<int>(ret);
 		});
 	}
 
@@ -587,13 +587,13 @@ namespace libtorrent {
 				, std::int64_t const file_offset
 				, span<iovec_t const> vec, storage_error& ec)
 		{
-		std::size_t const read_size = std::size_t(bufs_size(vec));
+			std::size_t const read_size = std::size_t(bufs_size(vec));
 
 			if (files().pad_file_at(file_index))
 			{
 				std::array<char, 64> zeroes;
 				zeroes.fill(0);
-				for (int left = int(read_size); left > 0; left -= zeroes.size())
+				for (int left = int(read_size); left > 0; left -= int(zeroes.size()))
 				{
 					ph.update({zeroes.data(), std::min(zeroes.size(), std::size_t(left))});
 				}
@@ -623,7 +623,7 @@ namespace libtorrent {
 			auto handle = open_file(sett, file_index, flags, ec);
 			if (ec) return -1;
 
-			int ret = 0;
+			std::size_t ret = 0;
 			error_code e;
 			span<byte const volatile> file_range = handle.range();
 			if (file_range.size() > std::size_t(file_offset))
@@ -635,7 +635,7 @@ namespace libtorrent {
 				ret += file_range.size();
 			}
 
-			if (ret <= 0)
+			if (ret == 0)
 			{
 				ec.operation = operation_t::file_read;
 				ec.ec = boost::asio::error::eof;
@@ -643,7 +643,7 @@ namespace libtorrent {
 				return -1;
 			}
 
-			return ret;
+			return static_cast<int>(ret);
 		});
 	}
 
@@ -653,8 +653,8 @@ namespace libtorrent {
 		, file_index_t const file
 		, aux::open_mode_t mode, storage_error& ec) const
 	{
-		if ((mode & aux::open_mode_t::write) != 0
-			&& (mode & aux::open_mode_t::truncate) == 0)
+		if (test(mode & aux::open_mode_t::write)
+			&& !test(mode & aux::open_mode_t::truncate))
 		{
 			std::unique_lock<std::mutex> l(m_file_created_mutex);
 			if (m_file_created.size() != files().num_files())
@@ -666,7 +666,7 @@ namespace libtorrent {
 		}
 
 		aux::file_view h = open_file_impl(sett, file, mode, ec.ec);
-		if ((mode & aux::open_mode_t::write)
+		if (test(mode & aux::open_mode_t::write)
 			&& ec.ec == boost::system::errc::no_such_file_or_directory)
 		{
 			// this means the directory the file is in doesn't exist.
@@ -692,7 +692,7 @@ namespace libtorrent {
 			ec.operation = operation_t::file_open;
 			return aux::file_view();
 		}
-		if (mode & aux::open_mode_t::truncate)
+		if (test(mode & aux::open_mode_t::truncate))
 		{
 			// remember that we've truncated this file, so we don't have to do it
 			// again

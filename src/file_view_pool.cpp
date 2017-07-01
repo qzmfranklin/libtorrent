@@ -45,6 +45,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <limits>
 
+using namespace libtorrent::flags;
+
 namespace libtorrent { namespace aux {
 
 	file_view_pool::file_view_pool(int size) : m_size(size) {}
@@ -52,7 +54,7 @@ namespace libtorrent { namespace aux {
 
 	file_view file_view_pool::open_file(storage_index_t st, std::string const& p
 		, file_index_t const file_index, file_storage const& fs
-		, std::uint32_t const m)
+		, open_mode_t const m)
 	{
 		// potentially used to hold a reference to a file object that's
 		// about to be destructed. If we have such object we assign it to
@@ -76,7 +78,7 @@ namespace libtorrent { namespace aux {
 				// it's OK to use a read-write file if we just asked for read. But if
 				// we asked for write, the file we serve back must be opened in write
 				// mode
-				if ((e.mode & open_mode_t::write) == 0 && (m & open_mode_t::write))
+				if (!test(e.mode & open_mode_t::write) && test(m & open_mode_t::write))
 				{
 					defer_destruction = std::move(e.mapping);
 					e.mapping = std::make_shared<file_mapping>(
@@ -113,16 +115,16 @@ namespace libtorrent { namespace aux {
 
 	namespace {
 
-	std::uint32_t to_file_open_mode(std::uint32_t const mode)
+	file_open_mode to_file_open_mode(open_mode_t const mode)
 	{
-		std::uint32_t const ret =
-			(mode & open_mode_t::write)
-				? file_open_mode::read_write : file_open_mode::read_write
-			| (mode & open_mode_t::no_atime)
-				? file_open_mode::no_atime : 0
+		int const ret =
+			(test(mode & open_mode_t::write)
+				? file_open_mode::read_write : file_open_mode::read_write)
+			| (test(mode & open_mode_t::no_atime)
+				? file_open_mode::no_atime : file_open_mode::read_only);
 			;
 
-		return ret;
+		return static_cast<file_open_mode>(ret);
 	}
 
 	}

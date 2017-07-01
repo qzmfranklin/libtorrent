@@ -31,6 +31,9 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "libtorrent/config.hpp"
+
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 #include "libtorrent/storage.hpp"
 #include "libtorrent/disk_io_thread.hpp"
 #include "libtorrent/disk_buffer_holder.hpp"
@@ -1256,3 +1259,5 @@ namespace libtorrent {
 		if (cnt > 0) free_jobs(to_delete.data(), cnt);
 	}
 }
+
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
