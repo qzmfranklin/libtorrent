@@ -4,6 +4,7 @@ branches:
   - master
   - RC_1_1
   - RC_1_0
+  - new-disk-io
 os: Visual Studio 2015
 clone_depth: 1
 environment:
@@ -32,7 +33,7 @@ environment:
     include: 'include="c:\\OpenSSL-Win32\\include"'
 
 install:
-- if defined sim ( git submodule update --init --recursive )
+- git submodule update --init --recursive
 - set ROOT_DIRECTORY=%CD%
 - cd %ROOT_DIRECTORY%
 - if %compiler% == msvc-14.0 if defined ssl if not exist openssl-1.0.1p-vs2015.7z (

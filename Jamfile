@@ -729,6 +729,7 @@ local usage-requirements =
 # msvc optimizations
 	<toolset>msvc,<variant>release:<linkflags>/OPT:ICF=5
 	<toolset>msvc,<variant>release:<linkflags>/OPT:REF
+	<target-os>windows:<asynch-exceptions>on
 
 	# disable bogus deprecation warnings on msvc8
 	<toolset>msvc:<define>_SCL_SECURE_NO_DEPRECATE
@@ -752,7 +753,7 @@ lib torrent
 	<link>shared:<define>TORRENT_BUILDING_SHARED
 	<define>BOOST_NO_DEPRECATED
 	<link>shared:<define>BOOST_SYSTEM_SOURCE
-	<library>/try_signal
+	<library>/try_signal//try_signal/<link>static
 
 	<dht>on:<source>src/kademlia/$(KADEMLIA_SOURCES).cpp
 	<dht>on:<source>ed25519/src/$(ED25519_SOURCES).cpp
