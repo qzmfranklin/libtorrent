@@ -301,7 +301,10 @@ file_mapping::file_mapping(file_handle file, open_mode_t const mode
 	// you can't create an mmap of size 0, so we just set it to null. We
 	// still need to create the empty file.
 	if (file_size > 0 && m_mapping == nullptr)
+	{
+		fprintf(stderr, "MapViewOfFile failed: %d\n", GetLastError());
 		throw_ex<system_error>(error_code(GetLastError(), system_category()));
+	}
 }
 
 void file_mapping::close()

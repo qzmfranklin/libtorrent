@@ -701,6 +701,9 @@ namespace libtorrent {
 			std::unique_lock<std::mutex> l(m_file_created_mutex);
 			m_file_created.set_bit(file);
 		}
+
+		// the optional should be set here
+		TORRENT_ASSERT(static_cast<bool>(h));
 		return h;
 	}
 
@@ -738,6 +741,7 @@ namespace libtorrent {
 		catch (system_error const& ex)
 		{
 			ec = ex.code();
+			TORRENT_ASSERT(ec);
 			return {};
 		}
 	}
