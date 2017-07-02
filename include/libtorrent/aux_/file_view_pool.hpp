@@ -111,7 +111,7 @@ namespace aux {
 			file_entry(file_id k
 				, string_view name
 				, open_mode_t const m
-				, std::size_t const size)
+				, std::int64_t const size)
 				: key(k)
 				, mapping(std::make_shared<file_mapping>(file_handle(name, size, m), m, size))
 				, mode(m)

@@ -45,6 +45,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+
 #endif // TORRENT_HAVE_MAP_VIEW_OF_FILE
 
 namespace libtorrent {
@@ -56,9 +57,21 @@ namespace aux {
 
 	using namespace flags;
 
+#include "libtorrent/aux_/disable_warnings_push.hpp"
+
+#if TORRENT_HAVE_MAP_VIEW_OF_FILE
+	using native_handle_t = HANDLE;
+	const native_handle_t invalid_handle = INVALID_HANDLE_VALUE;
+#else
+	using native_handle_t = int;
+	const native_handle_t invalid_handle = -1;
+#endif
+
+#include "libtorrent/aux_/disable_warnings_pop.hpp"
+
 	struct TORRENT_EXTRA_EXPORT file_handle
 	{
-		file_handle(string_view name, std::size_t size, open_mode_t mode);
+		file_handle(string_view name, std::int64_t size, open_mode_t mode);
 		file_handle(file_handle const& rhs) = delete;
 		file_handle& operator=(file_handle const& rhs) = delete;
 
@@ -69,20 +82,9 @@ namespace aux {
 
 		std::int64_t get_size() const;
 
-#if TORRENT_HAVE_MAP_VIEW_OF_FILE
-		using native_handle_t = HANDLE;
-#else
-		using native_handle_t = int;
-#endif
-
 		native_handle_t fd() const { return m_fd; }
 	private:
 		void close();
-#if TORRENT_HAVE_MAP_VIEW_OF_FILE
-		static constexpr native_handle_t invalid_handle = INVALID_HANDLE_VALUE;
-#else
-		static constexpr native_handle_t invalid_handle = -1;
-#endif
 		native_handle_t m_fd;
 	};
 
@@ -91,7 +93,7 @@ namespace aux {
 #if TORRENT_HAVE_MAP_VIEW_OF_FILE
 	struct TORRENT_EXTRA_EXPORT file_mapping_handle
 	{
-		file_mapping_handle(file_handle file, open_mode_t const mode, std::size_t size);
+		file_mapping_handle(file_handle file, open_mode_t mode, std::int64_t size);
 		~file_mapping_handle();
 		file_mapping_handle(file_mapping_handle const&) = delete;
 		file_mapping_handle& operator=(file_mapping_handle const&) = delete;
@@ -111,7 +113,7 @@ namespace aux {
 	{
 		friend struct file_view;
 
-		file_mapping(file_handle file, open_mode_t const mode, std::size_t const file_size);
+		file_mapping(file_handle file, open_mode_t mode, std::int64_t file_size);
 
 		// non-copyable
 		file_mapping(file_mapping const&) = delete;
@@ -131,10 +133,10 @@ namespace aux {
 		span<byte volatile> memory()
 		{
 			TORRENT_ASSERT(m_mapping);
-			return { static_cast<byte volatile*>(m_mapping), m_size };
+			return { static_cast<byte volatile*>(m_mapping), static_cast<std::size_t>(m_size) };
 		}
 
-		std::size_t m_size;
+		std::int64_t m_size;
 #if TORRENT_HAVE_MAP_VIEW_OF_FILE
 		file_mapping_handle m_file;
 #else

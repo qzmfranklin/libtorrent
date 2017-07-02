@@ -54,14 +54,14 @@ namespace libtorrent {
 namespace aux {
 
 namespace {
-	std::size_t memory_map_size(open_mode_t const mode
-		, std::size_t const file_size, file_handle const& fh)
+	std::int64_t memory_map_size(open_mode_t const mode
+		, std::int64_t const file_size, file_handle const& fh)
 	{
 		// if we're opening the file in write-mode, we'll always truncate it to
 		// the right size, but in read mode, we should not map more than the
 		// file size
 		return test(mode & open_mode_t::write)
-			? file_size : std::min(std::size_t(fh.get_size()), file_size);
+			? file_size : std::min(std::int64_t(fh.get_size()), file_size);
 	}
 
 
@@ -95,9 +95,9 @@ namespace {
 
 } // anonymous
 
-file_handle::file_handle(string_view name, std::size_t
+file_handle::file_handle(string_view name, std::int64_t
 	, open_mode_t const mode)
-	: m_fd(CreateFileW(convert_to_native_path_string(name).c_str()
+	: m_fd(CreateFileW(convert_to_native_path_string(name.to_string()).c_str()
 		, file_access(mode)
 		, file_share(mode)
 		, nullptr
@@ -139,7 +139,7 @@ namespace {
 	}
 } // anonymous
 
-file_handle::file_handle(string_view name, std::size_t const size
+file_handle::file_handle(string_view name, std::int64_t const size
 	, open_mode_t const mode)
 	: m_fd(open(name.to_string().c_str(), file_flags(mode), 0755))
 {
@@ -215,7 +215,7 @@ int map_protect(open_mode_t const m)
 }
 
 file_mapping_handle::file_mapping_handle(file_handle file, open_mode_t const mode
-	, std::size_t const size)
+	, std::int64_t const size)
 	: m_file(std::move(file))
 	, m_mapping(CreateFileMapping(m_file.fd()
 		, nullptr
@@ -224,6 +224,7 @@ file_mapping_handle::file_mapping_handle(file_handle file, open_mode_t const mod
 		, size & 0xffffffff
 		, nullptr))
 	{
+		TORRENT_ASSERT(size >= 0);
 		// CreateFileMapping will extend the underlying file to the specified // size.
 		// you can't map files of size 0, so we just set it to null. We
 		// still need to create the empty file.
@@ -261,12 +262,14 @@ file_mapping_handle::file_mapping_handle(file_handle file, open_mode_t const mod
 
 #if TORRENT_HAVE_MMAP
 
-file_mapping::file_mapping(file_handle file, open_mode_t const mode, std::size_t const file_size)
+file_mapping::file_mapping(file_handle file, open_mode_t const mode, std::int64_t const file_size)
 	: m_size(memory_map_size(mode, file_size, file))
 	, m_file(std::move(file))
-	, m_mapping(m_size > 0 ? mmap(nullptr, m_size, mmap_prot(mode), mmap_flags(mode), m_file.fd(), 0)
+	, m_mapping(m_size > 0 ? mmap(nullptr, static_cast<std::size_t>(m_size)
+			, mmap_prot(mode), mmap_flags(mode), m_file.fd(), 0)
 	: nullptr)
 {
+	TORRENT_ASSERT(file_size >= 0);
 	// you can't create an mmap of size 0, so we just set it to null. We
 	// still need to create the empty file.
 	if (file_size > 0 && m_mapping == map_failed)
@@ -278,7 +281,7 @@ file_mapping::file_mapping(file_handle file, open_mode_t const mode, std::size_t
 void file_mapping::close()
 {
 	if (m_mapping == nullptr) return;
-	munmap(m_mapping, m_size);
+	munmap(m_mapping, static_cast<std::size_t>(m_size));
 	m_mapping = nullptr;
 }
 
@@ -292,11 +295,11 @@ DWORD map_access(open_mode_t const m)
 } // anonymous
 
 file_mapping::file_mapping(file_handle file, open_mode_t const mode
-	, std::size_t const file_size)
+	, std::int64_t const file_size)
 	: m_size(memory_map_size(mode, file_size, file))
 	, m_file(std::move(file), mode, m_size)
 	, m_mapping(MapViewOfFile(m_file.handle()
-		, map_access(mode), 0, 0, m_size))
+		, map_access(mode), 0, 0, static_cast<std::size_t>(m_size)))
 {
 	// you can't create an mmap of size 0, so we just set it to null. We
 	// still need to create the empty file.

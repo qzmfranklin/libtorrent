@@ -85,8 +85,8 @@ namespace libtorrent { namespace aux {
 					defer_destruction = std::move(e.mapping);
 					e.mapping = std::make_shared<file_mapping>(
 						file_handle(fs.file_path(file_index, p)
-							, static_cast<std::size_t>(fs.file_size(file_index)), m), m
-						, static_cast<std::size_t>(fs.file_size(file_index)));
+							, fs.file_size(file_index), m), m
+						, fs.file_size(file_index));
 					e.mode = m;
 				}
 			});
@@ -106,7 +106,7 @@ namespace libtorrent { namespace aux {
 
 		l.unlock();
 		file_entry e({st, file_index}, fs.file_path(file_index, p), m
-			, static_cast<std::size_t>(fs.file_size(file_index)));
+			, fs.file_size(file_index));
 		auto ret = e.mapping->view();
 
 		l.lock();

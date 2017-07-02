@@ -225,7 +225,7 @@ namespace libtorrent {
 		, int const offset, error_code& ec)
 	{
 		TORRENT_ASSERT(offset >= 0);
-		TORRENT_ASSERT(len + offset <= m_piece_size);
+		TORRENT_ASSERT(int(len + offset) <= m_piece_size);
 		std::unique_lock<std::mutex> l(m_mutex);
 
 		auto const i = m_piece_map.find(piece);
