@@ -158,7 +158,7 @@ file_handle::file_handle(string_view name, std::size_t const size
 		if (ftruncate(m_fd, static_cast<off_t>(size)) < 0)
 		{
 			int const err = errno;
-			close(m_fd);
+			::close(m_fd);
 			throw_ex<system_error>(error_code(err, system_category()));
 		}
 	}

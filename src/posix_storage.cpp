@@ -68,20 +68,15 @@ namespace aux {
 				return bufs_size(vec);
 			}
 
+			FILE* const f = open_file(file_index, open_mode_t::read_only
+				, file_offset, ec);
+			if (ec.ec) return -1;
+
 			// set this unconditionally in case the upper layer would like to treat
 			// short reads as errors
 			ec.operation = operation_t::file_read;
 
-			FILE* const f = open_file(file_index, open_mode_t::read_only
-				, file_offset, ec.ec);
-			if (ec.ec)
-			{
-				ec.file(file_index);
-				return -1;
-			}
-
 			std::size_t ret = 0;
-			error_code e;
 			for (auto buf : vec)
 			{
 				std::size_t const r = fread(buf.data(), 1, buf.size(), f);
@@ -99,12 +94,11 @@ namespace aux {
 			fclose(f);
 
 			// we either get an error or 0 or more bytes read
-			TORRENT_ASSERT(e || ret > 0);
+			TORRENT_ASSERT(ec.ec || ret > 0);
 			TORRENT_ASSERT(int(ret) <= bufs_size(vec));
 
-			if (e)
+			if (ec.ec)
 			{
-				ec.ec = e;
 				ec.file(file_index);
 				return -1;
 			}
@@ -129,17 +123,13 @@ namespace aux {
 				return bufs_size(vec);
 			}
 
+			FILE* const f = open_file(file_index, open_mode_t::write
+				, file_offset, ec);
+			if (ec.ec) return -1;
+
 			// set this unconditionally in case the upper layer would like to treat
 			// short reads as errors
 			ec.operation = operation_t::file_write;
-
-			FILE* const f = open_file(file_index, open_mode_t::write
-				, file_offset, ec.ec);
-			if (ec.ec)
-			{
-				ec.file(file_index);
-				return -1;
-			}
 
 			std::size_t ret = 0;
 			for (auto buf : vec)
@@ -275,13 +265,8 @@ namespace aux {
 			if ((!err && size > file_size)
 				|| files().file_size(file_index) == 0)
 			{
-				FILE* f = open_file(file_index, aux::open_mode_t::write, 0, ec.ec);
-				if (ec)
-				{
-					ec.file(file_index);
-					ec.operation = operation_t::file_fallocate;
-					return;
-				}
+				FILE* f = open_file(file_index, aux::open_mode_t::write, 0, ec);
+				if (ec) return;
 #ifndef TORRENT_WINDOWS
 				if (file_size > 0)
 				{
@@ -302,49 +287,58 @@ namespace aux {
 	}
 
 	FILE* posix_storage::open_file(file_index_t idx, open_mode_t const mode
-		, std::int64_t const offset, error_code& ec)
+		, std::int64_t const offset, storage_error& ec)
 	{
 		std::string const fn = files().file_path(idx, m_save_path);
 
 		char const* mode_str = test(mode & open_mode_t::write)
-			? "r+" : "r";
+			? "rb+" : "rb";
 
 		FILE* f = fopen(fn.c_str(), mode_str);
 		if (f == nullptr)
 		{
-			ec.assign(errno, generic_category());
+			ec.ec.assign(errno, generic_category());
 
 			// if we fail to open a file for writing, and the error is ENOENT,
 			// it is likely because the directory we're creating the file in
 			// does not exist. Create the directory and try again.
 			if (test(mode & open_mode_t::write)
-				&& ec == boost::system::errc::no_such_file_or_directory)
+				&& ec.ec == boost::system::errc::no_such_file_or_directory)
 			{
 				// this means the directory the file is in doesn't exist.
 				// so create it
-				ec.clear();
-				create_directories(parent_path(fn), ec);
+				ec.ec.clear();
+				create_directories(parent_path(fn), ec.ec);
 
-				if (ec) return nullptr;
+				if (ec.ec)
+				{
+					ec.file(idx);
+					ec.operation = operation_t::mkdir;
+					return nullptr;
+				}
 
 				// now that we've created the directories, try again
 				// and make sure we create the file this time ("r+") opens for
 				// reading and writing, but doesn't create the file. "w+" creates
 				// the file and truncates it
-				f = fopen(fn.c_str(), "w+");
+				f = fopen(fn.c_str(), "wb+");
 				if (f == nullptr)
 				{
-					ec.assign(errno, generic_category());
+					ec.ec.assign(errno, generic_category());
+					ec.file(idx);
+					ec.operation = operation_t::file_open;
 					return nullptr;
 				}
 			}
 			else
 			{
+				ec.file(idx);
+				ec.operation = operation_t::file_open;
 				return nullptr;
 			}
 		}
 
-#ifdef WIN32
+#ifdef TORRENT_WINDOWS
 #define fseek _fseeki64
 #endif
 
@@ -352,8 +346,10 @@ namespace aux {
 		{
 			if (fseek(f, offset, SEEK_SET) != 0)
 			{
+				ec.ec.assign(errno, generic_category());
+				ec.file(idx);
+				ec.operation = operation_t::file_seek;
 				fclose(f);
-				ec.assign(errno, generic_category());
 				return nullptr;
 			}
 		}

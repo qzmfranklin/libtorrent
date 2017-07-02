@@ -77,7 +77,7 @@ namespace aux {
 	private:
 
 		FILE* open_file(file_index_t idx, open_mode_t mode, std::int64_t offset
-			, error_code& ec);
+			, storage_error& ec);
 
 		file_storage const& m_files;
 		std::unique_ptr<file_storage> m_mapped_files;

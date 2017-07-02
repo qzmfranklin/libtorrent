@@ -33,6 +33,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef TORRENT_FILE_VIEW_POOL_HPP
 #define TORRENT_FILE_VIEW_POOL_HPP
 
+#include "libtorrent/config.hpp"
+
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 #include <map>
 #include <mutex>
 #include <vector>
@@ -135,5 +139,7 @@ namespace aux {
 	};
 }
 }
+
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
 
 #endif

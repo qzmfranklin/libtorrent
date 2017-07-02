@@ -32,6 +32,8 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "libtorrent/config.hpp"
 
+#if TORRENT_HAVE_MMAP || TORRENT_HAVE_MAP_VIEW_OF_FILE
+
 #include "libtorrent/assert.hpp"
 #include "libtorrent/aux_/file_view_pool.hpp"
 #include "libtorrent/error_code.hpp"
@@ -224,4 +226,6 @@ namespace libtorrent { namespace aux {
 	}
 }
 }
+
+#endif // HAVE_MMAP || HAVE_MAP_VIEW_OF_FILE
 
