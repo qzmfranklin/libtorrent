@@ -135,7 +135,12 @@ namespace {
 		return (test(m & open_mode_t::no_cache)
 			? MAP_NOCACHE
 			: 0)
-			| MAP_FILE | MAP_SHARED;
+			| MAP_FILE | MAP_SHARED
+#ifdef MAP_NOCORE
+			// BSD has a flag to exclude this region from core files
+			| MAP_NOCORE
+#endif
+			;
 	}
 } // anonymous
 
@@ -276,6 +281,17 @@ file_mapping::file_mapping(file_handle file, open_mode_t const mode, std::int64_
 	{
 		throw_ex<system_error>(error_code(errno, system_category()));
 	}
+
+#if TORRENT_USE_MADVISE && defined MADV_DONTDUMP
+	if (file_size > 0)
+	{
+		// on versions of linux that support it, ask for this region to not be
+		// included in coredumps (mostly to make the coredumps more manageable
+		// with large disk caches)
+		// ignore errors here, since this is best-effort
+		madvise(m_mapping, static_cast<std::size_t>(m_size), MADV_DONTDUMP);
+	}
+#endif
 }
 
 void file_mapping::close()
