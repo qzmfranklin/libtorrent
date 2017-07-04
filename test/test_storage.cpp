@@ -323,18 +323,18 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 	iovec_t iov = span<char>(piece1).first(half);
 
 	ret = writev(s, set, iov, piece_index_t(0), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != half) print_error("writev", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("writev", ret, ec);
 
 	iov = span<char>(piece1).last(half);
 	ret = writev(s, set, iov, piece_index_t(0), half, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != half) print_error("writev", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("writev", ret, ec);
 
 	// test unaligned read (where the bytes are aligned)
 	iov = span<char>(piece).subspan(3, piece_size - 9);
 	ret = readv(s, set, iov, piece_index_t(0), 3, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
+	TEST_EQUAL(ret, int(iov.size()));
 	if (ret != int(iov.size())) print_error("readv",ret, ec);
 	TEST_CHECK(iov == span<char>(piece1).subspan(3, piece_size - 9));
 
@@ -348,32 +348,32 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 	// verify piece 1
 	iov = piece;
 	ret = readv(s, set, iov, piece_index_t(0), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != piece_size) print_error("readv", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("readv", ret, ec);
 	TEST_CHECK(piece == piece1);
 
 	// do the same with piece 0 and 2 (in slot 1 and 2)
 	iov = piece0;
 	ret = writev(s, set, iov, piece_index_t(1), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != piece_size) print_error("writev", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("writev", ret, ec);
 
 	iov = piece2;
 	ret = writev(s, set, iov, piece_index_t(2), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != piece_size) print_error("writev", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("writev", ret, ec);
 
 	// verify piece 0 and 2
 	iov = piece;
 	ret = readv(s, set, iov, piece_index_t(1), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
+	TEST_EQUAL(ret, int(iov.size()));
 	if (ret != int(iov.size())) print_error("readv", ret, ec);
 	TEST_CHECK(piece == piece0);
 
 	iov = piece;
 	ret = readv(s, set, iov, piece_index_t(2), 0, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != piece_size) print_error("readv", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(piece_size)) print_error("readv", ret, ec);
 	TEST_CHECK(piece == piece2);
 
 	release_files(s, ec);
