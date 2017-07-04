@@ -335,14 +335,14 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 	iov = span<char>(piece).subspan(3, piece_size - 9);
 	ret = readv(s, set, iov, piece_index_t(0), 3, aux::open_mode_t::write, ec);
 	TEST_EQUAL(ret, iov.size());
-	if (ret != iov.size()) print_error("readv",ret, ec);
+	if (ret != int(iov.size())) print_error("readv",ret, ec);
 	TEST_CHECK(iov == span<char>(piece1).subspan(3, piece_size - 9));
 
 	// test unaligned read (where the bytes are not aligned)
 	iov = span<char>(piece).first(piece_size - 9);
 	ret = readv(s, set, iov, piece_index_t(0), 3, aux::open_mode_t::write, ec);
-	TEST_EQUAL(ret, iov.size());
-	if (ret != iov.size()) print_error("readv", ret, ec);
+	TEST_EQUAL(ret, int(iov.size()));
+	if (ret != int(iov.size())) print_error("readv", ret, ec);
 	TEST_CHECK(iov == span<char>(piece1).subspan(3, piece_size - 9));
 
 	// verify piece 1
@@ -367,7 +367,7 @@ void run_storage_tests(std::shared_ptr<torrent_info> info
 	iov = piece;
 	ret = readv(s, set, iov, piece_index_t(1), 0, aux::open_mode_t::write, ec);
 	TEST_EQUAL(ret, iov.size());
-	if (ret != iov.size()) print_error("readv", ret, ec);
+	if (ret != int(iov.size())) print_error("readv", ret, ec);
 	TEST_CHECK(piece == piece0);
 
 	iov = piece;
