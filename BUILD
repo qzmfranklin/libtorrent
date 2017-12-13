@@ -1,7 +1,9 @@
 licenses(['notice'])
 package(default_visibility=['//visibility:public'])
-load(':libtorrent.bzl', 'single_file_example', 'libtorrent_copts')
 
+libtorrent_copts= [
+    '-Wno-deprecated-declarations',
+]
 
 cc_library(
     name = 'libtorrent',
@@ -98,9 +100,22 @@ cc_binary(
     copts = libtorrent_copts,
 )
 
-single_file_example('connection_tester')
-single_file_example('dump_torrent')
-single_file_example('make_torrent')
-single_file_example('simple_client')
-single_file_example('stats_counters')
-single_file_example('upnp_test')
+
+[cc_binary(
+    name = name,
+    srcs = [
+        'examples/%s.cpp' % name,
+    ],
+    deps = [
+        ':libtorrent',
+    ],
+    copts = libtorrent_copts,
+) for name in [
+        'connection_tester',
+        'dump_torrent',
+        'make_torrent',
+        'simple_client',
+        'stats_counters',
+        'upnp_test',
+    ]
+]
