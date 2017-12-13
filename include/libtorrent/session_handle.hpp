@@ -586,10 +586,13 @@ namespace libtorrent {
 		// the peer ID is randomized per peer.
 		peer_id id() const;
 
+#ifndef TORRENT_NO_DEPRECATE
+		// deprecated in 1.2
 		// sets the key sent to trackers. If it's not set, it is initialized
 		// by libtorrent. The key may be used by the tracker to identify the
 		// peer potentially across you changing your IP.
 		void set_key(std::uint32_t key);
+#endif
 
 		// built-in peer classes
 		static constexpr peer_class_t global_peer_class_id{0};
@@ -697,7 +700,7 @@ namespace libtorrent {
 		// return value of ``get_peer_class()`` is undefined.
 		//
 		// ``set_peer_class()`` sets all the information in the
-		// ``peer_class_info`` object in the specified peer class. There is no
+		// peer_class_info object in the specified peer class. There is no
 		// option to only update a single property.
 		//
 		// A peer or torrent belonging to more than one class, the highest
